@@ -99,16 +99,46 @@
     const dynamic = new THREE.Group(); world.add(dynamic);
     const swaying = []; let rain = null; let glow = null;
     const positions = [ [-2.6,1.9], [2.5,1.75], [-3.25,-.3], [2.9,-.9], [-1.25,3.6], [1.1,3.55], [-2.1,-2.65], [1.55,-2.75], [3.75,.35], [-4.05,1.22], [.1,-3.85], [3.15,2.75], [-3.55,-2.1], [-.5,2.35], [2.15,-3.45], [-4.1,.2], [3.9,-1.85], [-1.4,-3.7], [4.15,1.3], [.7,4.15], [-2.7,3.05], [2.55,-2.15] ];
-    const treeMats = [0x246f42, 0x348650, 0x1f6041, 0x4c984e].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .9 }));
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6a4429, flatShading: true, roughness: 1 });
+    const leafMats = [0x1d5f3a, 0x2c7a46, 0x3f9250, 0x5aa858].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .88 }));
+    const needleMats = [0x164d3a, 0x216847, 0x2c7a50].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .9 }));
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x71462a, flatShading: true, roughness: 1 });
+    const branchMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, flatShading: true, roughness: 1 });
+    function branchBetween(group, from, to, width) {
+      const delta = new THREE.Vector3().subVectors(to, from), length = delta.length();
+      const branch = mesh(new THREE.CylinderGeometry(width * .72, width, length, 6), branchMat, 0);
+      branch.position.copy(from).add(to).multiplyScalar(.5);
+      branch.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
+      group.add(branch);
+    }
     function makeTree(x, z, size, index) {
       const tree = new THREE.Group();
-      const trunk = mesh(new THREE.CylinderGeometry(.08 * size, .15 * size, .92 * size, 6), trunkMat, .46 * size); tree.add(trunk);
-      const leaves = treeMats[index % treeMats.length];
-      // Katmanlar, ağaç büyüdükçe daha geniş bir taç hissi verir.
-      [[.56, .78, 1.08], [.76, 1.02, 1.52], [.49, 1.34, 1.92]].forEach(([radius, height, y]) => {
-        const crown = mesh(new THREE.ConeGeometry(radius * size, height * size, 7), leaves, y * size); tree.add(crown);
-      });
+      const isPine = index % 4 === 1;
+      const trunkHeight = (isPine ? 2.35 : 2.05) * size;
+      const trunk = mesh(new THREE.CylinderGeometry(.1 * size, .18 * size, trunkHeight, 7), trunkMat, trunkHeight / 2); tree.add(trunk);
+      // Kök çıkıntıları, ağacın zemine daha doğal oturmasını sağlar.
+      for (let r = 0; r < 4; r++) { const a = r * Math.PI / 2 + index; branchBetween(tree, new THREE.Vector3(0,.11*size,0), new THREE.Vector3(Math.cos(a)*.36*size,0,Math.sin(a)*.36*size), .052*size); }
+      if (isPine) {
+        // Çamın ayrı ayrı dal halkaları ve iğne demetleri vardır; tek bir koniden oluşmaz.
+        for (let ring = 0; ring < 4; ring++) {
+          const y = (.62 + ring * .38) * size, radius = (1.0 - ring * .16) * size;
+          for (let arm = 0; arm < 6; arm++) {
+            const a = arm * Math.PI * 2 / 6 + ring * .42;
+            const tip = new THREE.Vector3(Math.cos(a)*radius, y + .03*size, Math.sin(a)*radius);
+            branchBetween(tree, new THREE.Vector3(0,y,0), tip, .065*size);
+            const needles = mesh(new THREE.ConeGeometry(.27*size, .78*size, 6), needleMats[(ring+arm)%needleMats.length], 0);
+            needles.position.copy(tip); needles.rotation.z = Math.PI / 2; needles.rotation.y = -a; tree.add(needles);
+          }
+        }
+        const top = mesh(new THREE.ConeGeometry(.5*size,1.2*size,7),needleMats[1],2.23*size); tree.add(top);
+      } else {
+        // Dallanan gövde + farklı boydaki yaprak kümeleri: daha doğal, yuvarlak bir taç.
+        const crownPoints = [];
+        for (let b=0;b<7;b++) { const a=b*Math.PI*2/7+index*.48, start=new THREE.Vector3(0,(.86+(b%2)*.17)*size,0), end=new THREE.Vector3(Math.cos(a)*(.6+(b%3)*.12)*size,(1.25+(b%3)*.2)*size,Math.sin(a)*(.6+(b%3)*.12)*size); branchBetween(tree,start,end,.075*size); crownPoints.push(end); }
+        crownPoints.forEach((point,b) => {
+          for(let cluster=0;cluster<3;cluster++) { const a=cluster*2.094+b*.73; const leaf = mesh(new THREE.DodecahedronGeometry((.36+(cluster%2)*.07)*size,0),leafMats[(b+cluster+index)%leafMats.length],0); leaf.position.copy(point).add(new THREE.Vector3(Math.cos(a)*.28*size,(cluster-1)*.18*size+.25*size,Math.sin(a)*.28*size)); leaf.scale.set(1.15,.78,1); leaf.rotation.set(b,cluster,index*.2); tree.add(leaf); }
+        });
+        const crown = mesh(new THREE.DodecahedronGeometry(.68*size,1), leafMats[index%leafMats.length],1.72*size); crown.scale.set(1.15,.78,1); tree.add(crown);
+      }
       tree.position.set(x, -.32, z); tree.rotation.y = (index * 1.71) % Math.PI;
       dynamic.add(tree); swaying.push({ tree, phase: index * 1.93, base: tree.rotation.z });
     }
@@ -118,12 +148,24 @@
       for(let p=0;p<5;p++) { const petal = mesh(new THREE.SphereGeometry(.075,5,4),petalMat,.035); petal.position.set(Math.cos(p*1.256)*.09,.035,Math.sin(p*1.256)*.09); flower.add(petal); }
       flower.position.set(x,-.25,z); dynamic.add(flower);
     }
-    function makeAltar() {
-      const altar = new THREE.Group(); const baseMat = new THREE.MeshStandardMaterial({color:0x7390a0,flatShading:true,roughness:.8});
-      const base = mesh(new THREE.CylinderGeometry(.7,.88,.25,6),baseMat,-.12); altar.add(base);
-      const crystalMat = new THREE.MeshStandardMaterial({color:0x70f5df,emissive:0x21b8ae,emissiveIntensity:1.3,roughness:.15,metalness:.15});
-      const crystal = mesh(new THREE.OctahedronGeometry(.31,0),crystalMat,.34); altar.add(crystal);
-      const light = new THREE.PointLight(0x59ffe4,1.4,5); light.position.y=.4; altar.add(light); altar.position.y=-.22; dynamic.add(altar); glow={altar,crystal};
+    function makeShelter() {
+      // Merkez artık bir hedef/ödül değil, gerektiğinde dönülebilecek sıcak bir sığınak.
+      const shelter = new THREE.Group();
+      const wood = new THREE.MeshStandardMaterial({color:0x8d5b35,flatShading:true,roughness:1});
+      const roof = new THREE.MeshStandardMaterial({color:0x34434b,flatShading:true,roughness:1});
+      const warm = new THREE.MeshStandardMaterial({color:0xffd875,emissive:0xe99b36,emissiveIntensity:1.15,flatShading:true});
+      const floor = mesh(new THREE.CylinderGeometry(1.08,1.18,.18,10),new THREE.MeshStandardMaterial({color:0x64737a,flatShading:true,roughness:1}),-.1); shelter.add(floor);
+      const cabin = mesh(new THREE.BoxGeometry(1.28,1.05,1.08),wood,.48); shelter.add(cabin);
+      const roofTop = mesh(new THREE.ConeGeometry(1.08,.78,4),roof,1.38); roofTop.rotation.y=Math.PI/4; shelter.add(roofTop);
+      const door = mesh(new THREE.BoxGeometry(.27,.56,.025),new THREE.MeshStandardMaterial({color:0x4d2d1d,flatShading:true}),.26); door.position.z=.553; shelter.add(door);
+      [-.37,.37].forEach(x=>{ const window=mesh(new THREE.BoxGeometry(.23,.28,.03),warm,.62); window.position.set(x,.62,.555); shelter.add(window); });
+      const chimney=mesh(new THREE.BoxGeometry(.16,.55,.16),new THREE.MeshStandardMaterial({color:0x67737a,flatShading:true}),1.58); chimney.position.set(-.35,1.58,0); shelter.add(chimney);
+      // Taş patika ve kapının yanındaki fener, merkeze işlev ve hikâye katar.
+      for(let i=0;i<3;i++){ const step=mesh(new THREE.DodecahedronGeometry(.22,0),rock,-.19); step.position.set(0,-.19,.9+i*.35); step.scale.set(1.3,.32,.9); shelter.add(step); }
+      const post=mesh(new THREE.CylinderGeometry(.035,.045,.65,5),branchMat,.18); post.position.set(.82,.18,.55); shelter.add(post);
+      const lantern=mesh(new THREE.OctahedronGeometry(.13,0),warm,.55); lantern.position.set(.82,.55,.55); shelter.add(lantern);
+      const light=new THREE.PointLight(0xffc15a,1.35,4.6); light.position.set(.82,.62,.65); shelter.add(light);
+      shelter.position.y=-.24; dynamic.add(shelter); glow={shelter,lantern,light};
     }
     function makeRain() {
       const count = 850, geo = new THREE.BufferGeometry(), data = new Float32Array(count*3);
@@ -147,7 +189,7 @@
       for (let i=0;i<count;i++) { const [x,z]=positions[i]; const ageBoost = Math.min(1, Math.max(0, (streak - i*3) / 18)); makeTree(x,z,.43 + maturity*.48 + ageBoost*.27 + (i%3)*.035,i); }
       const flowerCount = Math.min(18, Math.floor(streak / 2));
       for(let i=0;i<flowerCount;i++) { const a=(i*2.399)+.45, r=1.25+(i%5)*.57; makeFlower(Math.cos(a)*r,Math.sin(a)*r,i%3===0?0xffb2cf:i%3===1?0xffdb72:0xbca8ff); }
-      if (streak >= 7) makeAltar();
+      if (streak >= 7) makeShelter();
       const lush = Math.min(streak / 30, 1);
       grass.color.setHSL(.30 + lush*.055, .38 + lush*.2, .28 + lush*.12);
       if (isStormy) {
@@ -168,7 +210,7 @@
     let clock = new THREE.Clock();
     function animate() { requestAnimationFrame(animate); const t=clock.getElapsedTime(); controls.update(); water.rotation.y+=.00045; water.position.y=-1.72+Math.sin(t*.75)*.025;
       swaying.forEach(({tree,phase,base})=>{ tree.rotation.z=base+Math.sin(t*1.2+phase)*.018; });
-      if(glow) { glow.altar.rotation.y=t*.45; glow.crystal.position.y=.34+Math.sin(t*2.2)*.055; }
+      if(glow) { glow.lantern.position.y=.55+Math.sin(t*3.1)*.025; glow.light.intensity=1.2+Math.sin(t*4.6)*.18; }
       if(isStormy && rain) { const a=rain.geometry.attributes.position.array; for(let i=1;i<a.length;i+=3){a[i]-=.22;if(a[i]<-2)a[i]=12;} rain.geometry.attributes.position.needsUpdate=true; }
       renderer.render(scene,camera); }
     updateWorld(); animate();
