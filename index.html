@@ -1,640 +1,178 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zihin Adası - 3D Gelişmiş Diorama</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zihin Adası</title>
   <style>
+    :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #090c10;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      user-select: none;
-    }
-    #canvas-container { width: 100vw; height: 100vh; display: block; }
-    
-    /* Modern Glassmorphic HUD */
-    #hud {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 24px;
-      padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 18px;
-      color: #fff;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-      z-index: 10;
-    }
-    .info-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 130px;
-    }
-    .streak-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #94a3b8;
-      font-weight: 600;
-    }
-    .streak-val {
-      font-size: 20px;
-      font-weight: 800;
-      color: #38bdf8;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .stage-badge {
-      font-size: 11px;
-      color: #a7f3d0;
-      font-weight: 500;
-    }
-    .btn-group {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    button {
-      background: #1e293b;
-      color: #f8fafc;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 8px 14px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    button:hover {
-      background: #334155;
-      transform: translateY(-2px);
-      border-color: rgba(255, 255, 255, 0.25);
-    }
-    button.primary {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      border: none;
-    }
-    button.primary:hover {
-      background: linear-gradient(135deg, #3b82f6, #2563eb);
-    }
-    button.danger {
-      background: rgba(220, 38, 38, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: #fca5a5;
-    }
-    button.danger:hover {
-      background: #dc2626;
-      color: white;
-    }
-    input[type="number"] {
-      width: 65px;
-      background: #0f172a;
-      border: 1px solid #334155;
-      color: #fff;
-      border-radius: 10px;
-      padding: 6px 8px;
-      font-size: 14px;
-      font-weight: bold;
-      text-align: center;
-      outline: none;
-    }
-    input[type="number"]:focus {
-      border-color: #38bdf8;
-    }
-    #storm-banner {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(220, 38, 38, 0.85);
-      backdrop-filter: blur(8px);
-      color: white;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      display: none;
-      animation: pulse 2s infinite;
-      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.4);
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.9; }
-      50% { opacity: 0.5; }
-    }
+    body { margin: 0; min-height: 100vh; overflow: hidden; background: #071c2b; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #canvas-container { position: fixed; inset: 0; }
+    #canvas-container canvas { display: block; width: 100%; height: 100%; }
+    .vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 39%, transparent 30%, rgba(2, 11, 19, .42) 100%); }
+    .hud { position: fixed; z-index: 2; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); width: min(720px, calc(100vw - 28px)); transform: translateX(-50%); color: #f5fbf8; }
+    .card { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 15px 17px; border: 1px solid rgba(255,255,255,.2); border-radius: 24px; background: rgba(7, 24, 35, .72); box-shadow: 0 18px 55px rgba(0,0,0,.3); backdrop-filter: blur(16px); }
+    .seed { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(145deg, #285d45, #123e3b); box-shadow: inset 0 1px rgba(255,255,255,.2); font-size: 25px; }
+    .eyebrow { margin: 0 0 2px; color: #9fdcc3; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .streak { margin: 0; font-size: clamp(18px, 3.4vw, 25px); font-weight: 800; letter-spacing: -.035em; }
+    .message { margin: 3px 0 0; color: rgba(235,250,244,.72); font-size: 12px; }
+    .progress { grid-column: 2 / 3; height: 5px; margin-top: -10px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.13); }
+    .progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #82df8c, #e7db72); box-shadow: 0 0 12px #a5ed91; transition: width .45s ease; }
+    .controls { display: flex; gap: 7px; }
+    button { appearance: none; min-width: 40px; height: 40px; border: 0; border-radius: 13px; padding: 0 13px; color: white; background: rgba(255,255,255,.12); cursor: pointer; font: inherit; font-weight: 800; transition: transform .18s ease, background .18s ease; }
+    button:hover { transform: translateY(-2px); background: rgba(255,255,255,.2); }
+    button:active { transform: translateY(0) scale(.96); }
+    #add { background: linear-gradient(135deg, #49b979, #218e75); box-shadow: 0 7px 20px rgba(37,160,109,.24); }
+    #add:hover { background: linear-gradient(135deg, #58ca86, #2da787); }
+    #weather { width: 40px; padding: 0; font-size: 17px; }
+    .tip { position: fixed; top: max(17px, env(safe-area-inset-top)); left: 50%; z-index: 2; transform: translateX(-50%); padding: 9px 13px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; background: rgba(5,22,34,.5); color: rgba(239,255,247,.83); font-size: 12px; text-align: center; backdrop-filter: blur(8px); transition: opacity .3s; }
+    @media (max-width: 570px) { .card { grid-template-columns: auto 1fr; gap: 10px; padding: 13px; border-radius: 21px; } .controls { grid-column: 1 / -1; justify-content: flex-end; } .progress { grid-column: 2; margin-top: -6px; } .message { display: none; } .tip { max-width: calc(100vw - 32px); } }
   </style>
-  <!-- Three.js ve OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-  <div id="storm-banner">⛈️ Fırtına Modu: Temelin sağlam, fırtına geçene kadar bekle!</div>
-  <div id="canvas-container"></div>
-
-  <div id="hud">
-    <div class="info-group">
-      <span class="streak-title">Mevcut Durum</span>
-      <div class="streak-val">
-        <span>🌱</span>
-        <input type="number" id="streak-input" min="0" max="365" value="7" onchange="setStreakDirectly(this.value)">
-        <span>Gün</span>
+  <main id="canvas-container" aria-label="Gün sayısına göre büyüyen Zihin Adası"></main>
+  <div class="vignette"></div>
+  <div class="tip" id="tip">Adanı döndürmek için sürükle · Yakınlaşmak için kaydır</div>
+  <section class="hud" aria-live="polite">
+    <div class="card">
+      <div class="seed" id="seed">🌱</div>
+      <div>
+        <p class="eyebrow" id="level">İlk filizler</p>
+        <p class="streak" id="streak-text">7 gün</p>
+        <p class="message" id="message">Köklerin güçleniyor.</p>
       </div>
-      <span id="stage-text" class="stage-badge">1. Evre: Akut Dönem</span>
+      <div class="controls">
+        <button id="minus" title="Bir günü geri al" aria-label="Bir günü geri al">−</button>
+        <button id="add" title="Bugünü tamamla" aria-label="Bugünü tamamla">+1</button>
+        <button id="weather" title="Zor gün modu" aria-label="Zor gün modunu aç veya kapat">☀️</button>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
     </div>
-
-    <div class="btn-group">
-      <button onclick="changeStreak(-1)">-1</button>
-      <button class="primary" onclick="changeStreak(1)">+1 Gün</button>
-      <button onclick="setStreakDirectly(62)">62. Gün</button>
-      <button class="danger" id="storm-btn" onclick="toggleStorm()">Fırtına</button>
-    </div>
-  </div>
+  </section>
 
   <script>
-    // URL Parametreleri
-    const urlParams = new URLSearchParams(window.location.search);
-    let streak = parseInt(urlParams.get('streak')) || 7;
-    let isStormy = urlParams.get('storm') === 'true';
+    // URL ile kontrol: ?streak=14&storm=true. Parametre yoksa son değer tarayıcıda korunur.
+    const query = new URLSearchParams(location.search);
+    const saved = Number(localStorage.getItem('zihin-adasi-streak'));
+    let streak = Math.max(0, Math.floor(query.has('streak') ? Number(query.get('streak')) : (Number.isFinite(saved) ? saved : 7)));
+    let isStormy = query.get('storm') === 'true';
+    const $ = id => document.getElementById(id);
+    const container = $('canvas-container');
 
-    // Sahne, Kamera, Renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(22, 18, 26);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    scene.background = new THREE.Color(0x0a2939);
+    scene.fog = new THREE.FogExp2(0x0a2939, .024);
+    const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .1, 100);
+    camera.position.set(11, 9, 13);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
-
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    container.appendChild(renderer.domElement);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2.05;
-    controls.minDistance = 10;
-    controls.maxDistance = 60;
-    controls.target.set(0, 2, 0);
+    controls.enableDamping = true; controls.dampingFactor = .055;
+    controls.enablePan = false; controls.minDistance = 10; controls.maxDistance = 21;
+    controls.maxPolarAngle = Math.PI / 2.12; controls.target.set(0, .45, 0);
 
-    // Işıklandırma
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.6);
-    scene.add(hemiLight);
+    const hemi = new THREE.HemisphereLight(0xc6f3ff, 0x17321e, 1.18); scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffedb0, 1.65); sun.position.set(7, 13, 5); sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.left = -10; sun.shadow.camera.right = 10; sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10; scene.add(sun);
+    const moon = new THREE.DirectionalLight(0x7ab4ff, .22); moon.position.set(-8, 7, -9); scene.add(moon);
 
-    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.4);
-    sunLight.position.set(25, 35, 20);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 100;
-    const d = 20;
-    sunLight.shadow.camera.left = -d;
-    sunLight.shadow.camera.right = d;
-    sunLight.shadow.camera.top = d;
-    sunLight.shadow.camera.bottom = -d;
-    sunLight.shadow.bias = -0.0005;
-    scene.add(sunLight);
+    const world = new THREE.Group(); scene.add(world);
+    const grass = new THREE.MeshStandardMaterial({ color: 0x4d9b53, flatShading: true, roughness: .92 });
+    const earth = new THREE.MeshStandardMaterial({ color: 0x795035, flatShading: true, roughness: 1 });
+    const rock = new THREE.MeshStandardMaterial({ color: 0x3a5970, flatShading: true, roughness: .92 });
+    function mesh(geometry, material, y = 0) { const item = new THREE.Mesh(geometry, material); item.position.y = y; item.castShadow = item.receiveShadow = true; return item; }
+    const water = mesh(new THREE.CylinderGeometry(9.4, 9.4, .18, 48), new THREE.MeshStandardMaterial({ color: 0x176a87, roughness: .42, metalness: .08, transparent: true, opacity: .92 }), -1.72); water.receiveShadow = false; scene.add(water);
+    const shore = mesh(new THREE.CylinderGeometry(5.9, 5.18, .3, 12), new THREE.MeshStandardMaterial({ color: 0xd8c06e, flatShading: true, roughness: 1 }), -.86); world.add(shore);
+    const soil = mesh(new THREE.CylinderGeometry(5.56, 4.85, 1.45, 12), earth, -1.4); world.add(soil);
+    const lawn = mesh(new THREE.CylinderGeometry(5.58, 5.48, .32, 12), grass, -.53); world.add(lawn);
+    // Küçük taşlar adanın sınırını daha doğal gösterir.
+    for (let i = 0; i < 15; i++) { const a = i / 15 * Math.PI * 2; const r = 5.0 + (i % 3) * .22; const stone = mesh(new THREE.DodecahedronGeometry(.19 + (i % 2) * .08, 0), rock, -.28); stone.position.set(Math.cos(a) * r, -.28, Math.sin(a) * r); stone.rotation.set(i, a, i * .6); world.add(stone); }
 
-    // Şimşek Işığı
-    const lightningLight = new THREE.PointLight(0xa5b4fc, 0, 150);
-    lightningLight.position.set(0, 30, 0);
-    scene.add(lightningLight);
-
-    // Ana Ada Grubu
-    const worldGroup = new THREE.Group();
-    scene.add(worldGroup);
-
-    // Malzemeler
-    const grassMat = new THREE.MeshStandardMaterial({ color: 0x38a169, roughness: 0.8, flatShading: true });
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9, flatShading: true });
-    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.95, flatShading: true });
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x0ea5e9, roughness: 0.1, metalness: 0.1, transparent: true, opacity: 0.75, flatShading: true
-    });
-
-    // Uçan Ada Tabanı
-    function buildIslandBase() {
-      const island = new THREE.Group();
-
-      // Üst Çim Katman (Geniş 12 birim)
-      const grassGeo = new THREE.CylinderGeometry(11.5, 10.8, 1.2, 24);
-      const grassMesh = new THREE.Mesh(grassGeo, grassMat);
-      grassMesh.position.y = 0.6;
-      grassMesh.receiveShadow = true;
-      grassMesh.castShadow = true;
-      island.add(grassMesh);
-
-      // Orta Toprak Katman
-      const dirtGeo = new THREE.CylinderGeometry(10.8, 8.5, 2.5, 18);
-      const dirtMesh = new THREE.Mesh(dirtGeo, dirtMat);
-      dirtMesh.position.y = -1.25;
-      dirtMesh.receiveShadow = true;
-      dirtMesh.castShadow = true;
-      island.add(dirtMesh);
-
-      // Alt Kayalık Uçurum (Stalaktit Konisi)
-      const rockGeo = new THREE.ConeGeometry(8.5, 9, 14);
-      const rockMesh = new THREE.Mesh(rockGeo, rockMat);
-      rockMesh.rotation.x = Math.PI;
-      rockMesh.position.y = -7;
-      rockMesh.receiveShadow = true;
-      rockMesh.castShadow = true;
-      island.add(rockMesh);
-
-      // Küçük Uydu Adacıklar (Floating Rocks)
-      const miniCoords = [
-        { x: -14, y: -2, z: 6, s: 1.6 },
-        { x: 13, y: 1, z: -8, s: 2.2 },
-        { x: 11, y: -4, z: 12, s: 1.4 }
-      ];
-      miniCoords.forEach(c => {
-        const miniRock = new THREE.Mesh(new THREE.DodecahedronGeometry(c.s, 1), rockMat);
-        miniRock.position.set(c.x, c.y, c.z);
-        miniRock.castShadow = true;
-        island.add(miniRock);
+    const dynamic = new THREE.Group(); world.add(dynamic);
+    const swaying = []; let rain = null; let glow = null;
+    const positions = [ [-2.6,1.9], [2.5,1.75], [-3.25,-.3], [2.9,-.9], [-1.25,3.6], [1.1,3.55], [-2.1,-2.65], [1.55,-2.75], [3.75,.35], [-4.05,1.22], [.1,-3.85], [3.15,2.75], [-3.55,-2.1], [-.5,2.35], [2.15,-3.45], [-4.1,.2], [3.9,-1.85], [-1.4,-3.7], [4.15,1.3], [.7,4.15], [-2.7,3.05], [2.55,-2.15] ];
+    const treeMats = [0x246f42, 0x348650, 0x1f6041, 0x4c984e].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .9 }));
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6a4429, flatShading: true, roughness: 1 });
+    function makeTree(x, z, size, index) {
+      const tree = new THREE.Group();
+      const trunk = mesh(new THREE.CylinderGeometry(.08 * size, .15 * size, .92 * size, 6), trunkMat, .46 * size); tree.add(trunk);
+      const leaves = treeMats[index % treeMats.length];
+      // Katmanlar, ağaç büyüdükçe daha geniş bir taç hissi verir.
+      [[.56, .78, 1.08], [.76, 1.02, 1.52], [.49, 1.34, 1.92]].forEach(([radius, height, y]) => {
+        const crown = mesh(new THREE.ConeGeometry(radius * size, height * size, 7), leaves, y * size); tree.add(crown);
       });
-
-      // Şelale (Adadan süzülen su)
-      const fallGeo = new THREE.PlaneGeometry(1.8, 8, 4, 8);
-      const waterfall = new THREE.Mesh(fallGeo, waterMat);
-      waterfall.position.set(0, -3.5, 11.2);
-      waterfall.rotation.y = 0;
-      island.add(waterfall);
-
-      return island;
+      tree.position.set(x, -.32, z); tree.rotation.y = (index * 1.71) % Math.PI;
+      dynamic.add(tree); swaying.push({ tree, phase: index * 1.93, base: tree.rotation.z });
     }
-
-    worldGroup.add(buildIslandBase());
-
-    // Sonsuz Su Düzlemi (Aşağıdaki Okyanus)
-    const oceanGeo = new THREE.PlaneGeometry(250, 250, 40, 40);
-    oceanGeo.rotateX(-Math.PI / 2);
-    const oceanMat = new THREE.MeshStandardMaterial({
-      color: 0x0369a1, roughness: 0.2, metalness: 0.1, flatShading: true, transparent: true, opacity: 0.65
-    });
-    const ocean = new THREE.Mesh(oceanGeo, oceanMat);
-    ocean.position.y = -18;
-    ocean.receiveShadow = true;
-    scene.add(ocean);
-
-    // Ağaç Modelleri
-    function createPineTree(scale = 1) {
-      const g = new THREE.Group();
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.15 * scale, 0.22 * scale, 1.2 * scale, 5),
-        new THREE.MeshStandardMaterial({ color: 0x451a03, flatShading: true })
-      );
-      trunk.position.y = 0.6 * scale;
-      trunk.castShadow = true;
-      g.add(trunk);
-
-      const layers = 3;
-      for (let i = 0; i < layers; i++) {
-        const cone = new THREE.Mesh(
-          new THREE.ConeGeometry((1.1 - i * 0.25) * scale, (1.4 - i * 0.2) * scale, 6),
-          new THREE.MeshStandardMaterial({ color: 0x15803d, flatShading: true })
-        );
-        cone.position.y = (1.4 + i * 0.8) * scale;
-        cone.castShadow = true;
-        g.add(cone);
-      }
-      return g;
+    function makeFlower(x, z, hue) {
+      const flower = new THREE.Group(); const stem = mesh(new THREE.CylinderGeometry(.018,.025,.28,5), new THREE.MeshStandardMaterial({ color: 0x347641, flatShading:true }), -.11); flower.add(stem);
+      const petalMat = new THREE.MeshStandardMaterial({ color:hue, emissive:hue, emissiveIntensity:.12, flatShading:true });
+      for(let p=0;p<5;p++) { const petal = mesh(new THREE.SphereGeometry(.075,5,4),petalMat,.035); petal.position.set(Math.cos(p*1.256)*.09,.035,Math.sin(p*1.256)*.09); flower.add(petal); }
+      flower.position.set(x,-.25,z); dynamic.add(flower);
     }
-
-    function createOakTree(scale = 1) {
-      const g = new THREE.Group();
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.25 * scale, 0.35 * scale, 1.4 * scale, 6),
-        new THREE.MeshStandardMaterial({ color: 0x5c2e0b, flatShading: true })
-      );
-      trunk.position.y = 0.7 * scale;
-      trunk.castShadow = true;
-      g.add(trunk);
-
-      const foliage = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(1.2 * scale, 1),
-        new THREE.MeshStandardMaterial({ color: 0x22c55e, flatShading: true })
-      );
-      foliage.position.y = (1.9) * scale;
-      foliage.castShadow = true;
-      g.add(foliage);
-      return g;
+    function makeAltar() {
+      const altar = new THREE.Group(); const baseMat = new THREE.MeshStandardMaterial({color:0x7390a0,flatShading:true,roughness:.8});
+      const base = mesh(new THREE.CylinderGeometry(.7,.88,.25,6),baseMat,-.12); altar.add(base);
+      const crystalMat = new THREE.MeshStandardMaterial({color:0x70f5df,emissive:0x21b8ae,emissiveIntensity:1.3,roughness:.15,metalness:.15});
+      const crystal = mesh(new THREE.OctahedronGeometry(.31,0),crystalMat,.34); altar.add(crystal);
+      const light = new THREE.PointLight(0x59ffe4,1.4,5); light.position.y=.4; altar.add(light); altar.position.y=-.22; dynamic.add(altar); glow={altar,crystal};
     }
-
-    function createSakuraTree(scale = 1) {
-      const g = new THREE.Group();
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 1.3 * scale, 5),
-        new THREE.MeshStandardMaterial({ color: 0x3e2723, flatShading: true })
-      );
-      trunk.position.y = 0.65 * scale;
-      trunk.castShadow = true;
-      g.add(trunk);
-
-      const foliage = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(1.1 * scale, 1),
-        new THREE.MeshStandardMaterial({ color: 0xf472b6, flatShading: true })
-      );
-      foliage.position.y = 1.8 * scale;
-      foliage.castShadow = true;
-      g.add(foliage);
-      return g;
+    function makeRain() {
+      const count = 850, geo = new THREE.BufferGeometry(), data = new Float32Array(count*3);
+      for(let i=0;i<data.length;i+=3){ data[i]=(Math.random()-.5)*18; data[i+1]=Math.random()*13; data[i+2]=(Math.random()-.5)*18; }
+      geo.setAttribute('position',new THREE.BufferAttribute(data,3)); rain=new THREE.Points(geo,new THREE.PointsMaterial({color:0x9bd9ff,size:.045,transparent:true,opacity:.75})); scene.add(rain);
     }
-
-    function createShrub(scale = 1) {
-      const shrub = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(0.45 * scale, 0),
-        new THREE.MeshStandardMaterial({ color: 0x4ade80, flatShading: true })
-      );
-      shrub.position.y = 0.3 * scale;
-      shrub.castShadow = true;
-      return shrub;
+    function disposeChildren(group) { while(group.children.length) { const child = group.children.pop(); group.remove(child); } }
+    function getStage(days) {
+      if (days < 3) return ['İlk filizler', 'Bugün küçük bir alanı koruyorsun.', '🌱'];
+      if (days < 7) return ['Kök salma', 'Toprağın yeniden güç topluyor.', '🌿'];
+      if (days < 14) return ['Yeşeren patika', 'Her gün yeni bir yaşam alanı açılıyor.', '🌳'];
+      if (days < 30) return ['Küçük koru', 'Sabrın adanı bir ormana çeviriyor.', '🌲'];
+      if (days < 60) return ['Canlı orman', 'Bu düzen artık güçlü bir sığınak.', '✨'];
+      return ['Kadim orman', 'Attığın her adım burada iz bırakıyor.', '🏝️'];
     }
-
-    // Merkez Tapınak / Obelisk
-    function createCenterMonument(currentStreak) {
-      const g = new THREE.Group();
-      if (currentStreak < 8) {
-        // Taş Sunak / Kamp Ateşi
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 0.4, 6), rockMat);
-        base.position.y = 0.2;
-        g.add(base);
-      } else if (currentStreak < 22) {
-        // Kristal Dikilitaş
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2, 0.6, 6), rockMat);
-        base.position.y = 0.3;
-        g.add(base);
-        const crystal = new THREE.Mesh(
-          new THREE.OctahedronGeometry(0.8, 0),
-          new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, roughness: 0.1 })
-        );
-        crystal.position.y = 1.8;
-        g.add(crystal);
-      } else {
-        // Kadim Tapınak + Çifte Halka (22+ Gün)
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.8, 0.8, 8), rockMat);
-        base.position.y = 0.4;
-        g.add(base);
-
-        // 4 Sütun
-        for (let i = 0; i < 4; i++) {
-          const angle = (i / 4) * Math.PI * 2;
-          const col = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 2.5, 6), rockMat);
-          col.position.set(Math.cos(angle) * 1.6, 1.65, Math.sin(angle) * 1.6);
-          col.castShadow = true;
-          g.add(col);
-        }
-
-        // Büyük Yüzen Ruh Kristali
-        const crystal = new THREE.Mesh(
-          new THREE.OctahedronGeometry(1.2, 0),
-          new THREE.MeshStandardMaterial({
-            color: currentStreak >= 60 ? 0xfacc15 : 0x06b6d4,
-            emissive: currentStreak >= 60 ? 0xd97706 : 0x0891b2,
-            roughness: 0.1
-          })
-        );
-        crystal.position.y = 2.8;
-        g.add(crystal);
-      }
-      g.position.set(0, 1.2, 0);
-      return g;
-    }
-
-    // Yağmur / Fırtına Parçacıkları
-    let rainSystem = null;
-    function setupRain() {
-      const rainCount = 2500;
-      const rainGeo = new THREE.BufferGeometry();
-      const pos = new Float32Array(rainCount * 3);
-      for (let i = 0; i < rainCount * 3; i += 3) {
-        pos[i] = (Math.random() - 0.5) * 45;
-        pos[i + 1] = Math.random() * 30;
-        pos[i + 2] = (Math.random() - 0.5) * 45;
-      }
-      rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const rainMat = new THREE.PointsMaterial({
-        color: 0x94a3b8, size: 0.14, transparent: true, opacity: 0.75
-      });
-      rainSystem = new THREE.Points(rainGeo, rainMat);
-      scene.add(rainSystem);
-    }
-
-    // Yüzen Işık Parçacıkları (Fireflies / Ateş Böcekleri)
-    let fireflies = null;
-    function setupFireflies() {
-      const count = 120;
-      const geo = new THREE.BufferGeometry();
-      const pos = new Float32Array(count * 3);
-      for (let i = 0; i < count * 3; i += 3) {
-        pos[i] = (Math.random() - 0.5) * 20;
-        pos[i + 1] = 1.5 + Math.random() * 6;
-        pos[i + 2] = (Math.random() - 0.5) * 20;
-      }
-      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const mat = new THREE.PointsMaterial({
-        color: 0x7dd3fc, size: 0.25, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending
-      });
-      fireflies = new THREE.Points(geo, mat);
-      worldGroup.add(fireflies);
-    }
-    setupFireflies();
-
-    let dynamicNature = [];
-
-    // Dünyayı Güncelleme Motoru (Streak bazlı)
     function updateWorld() {
-      // Önceki bitki/yapıları temizle
-      dynamicNature.forEach(obj => worldGroup.remove(obj));
-      dynamicNature = [];
-
-      document.getElementById('streak-input').value = streak;
-
-      // Evre İsimlendirmesi
-      let stageName = "";
-      if (streak <= 3) stageName = "1. Evre: Akut Direnç (Kül & Taş)";
-      else if (streak <= 7) stageName = "2. Evre: Kırılma Eşiği (İlk Filizler)";
-      else if (streak <= 21) stageName = "3. Evre: Denge & Zümrüt Vadi";
-      else if (streak <= 60) stageName = "4. Evre: Zihinsel Netlik (Büyük Orman)";
-      else stageName = "5. Evre: Kadim Bilgelik (Göksel Vaha)";
-      document.getElementById('stage-text').innerText = stageName;
-
-      // Renk & Işık Geçişleri
-      if (!isStormy) {
-        document.getElementById('storm-banner').style.display = 'none';
-        if (streak < 4) {
-          grassMat.color.setHex(0x52525b); // Kurak gri-yeşil
-          scene.background = new THREE.Color(0x090d16);
-          scene.fog = new THREE.FogExp2(0x090d16, 0.025);
-          sunLight.intensity = 0.8;
-          sunLight.color.setHex(0xffedd5);
-        } else if (streak < 22) {
-          grassMat.color.setHex(0x2f855a); // Canlı yeşil
-          scene.background = new THREE.Color(0x0b1329);
-          scene.fog = new THREE.FogExp2(0x0b1329, 0.018);
-          sunLight.intensity = 1.3;
-          sunLight.color.setHex(0xfffaed);
-        } else {
-          grassMat.color.setHex(0x15803d); // Zümrüt zengin orman
-          scene.background = new THREE.Color(0x0f2338);
-          scene.fog = new THREE.FogExp2(0x0f2338, 0.014);
-          sunLight.intensity = 1.6;
-          sunLight.color.setHex(0xfef08a);
-        }
-        if (rainSystem) rainSystem.visible = false;
-        if (fireflies) fireflies.visible = true;
-      } else {
-        // Fırtına Hali
-        document.getElementById('storm-banner').style.display = 'block';
-        scene.background = new THREE.Color(0x020617);
-        scene.fog = new THREE.FogExp2(0x020617, 0.045);
-        sunLight.intensity = 0.15;
-        if (!rainSystem) setupRain();
-        rainSystem.visible = true;
-        if (fireflies) fireflies.visible = false;
-      }
-
-      // Merkez Anıt
-      const monument = createCenterMonument(streak);
-      worldGroup.add(monument);
-      dynamicNature.push(monument);
-
-      // SINIRSIZ AĞAÇ VE BİTKİ OLUŞTURMA (Altın Oran Fibonacci Dağılımı)
-      // Gün sayısı 62 ise tam 62 ağaç ve eşlik eden çalılar üretilir!
-      const count = streak;
-      const phi = 137.5 * (Math.PI / 180); // Altın Açı
-
-      for (let i = 1; i <= count; i++) {
-        // Yarıçapı merkez anıtı (2.5) boş bırakacak şekilde dışa doğru dağıt
-        const r = 2.8 + Math.sqrt(i / Math.max(count, 30)) * 7.5;
-        const theta = i * phi;
-        const x = r * Math.cos(theta);
-        const z = r * Math.sin(theta);
-
-        // Ada sınırlarını aşma kontrolü (yarıçap ~10.8)
-        if (Math.sqrt(x * x + z * z) > 10.5) continue;
-
-        let tree;
-        const scale = 0.75 + ((i * 17) % 5) * 0.12;
-
-        if (i % 7 === 0 && streak >= 30) {
-          tree = createSakuraTree(scale * 1.1); // Pembe Kiraz Ağaçları
-        } else if (i % 2 === 0) {
-          tree = createPineTree(scale);        // Çam Ağaçları
-        } else {
-          tree = createOakTree(scale);         // Meşe/Gür Ağaçlar
-        }
-
-        tree.position.set(x, 1.2, z);
-        worldGroup.add(tree);
-        dynamicNature.push(tree);
-
-        // Her ağacın yanına küçük çalı/çiçek detayları
-        if (i % 3 === 0) {
-          const shrub = createShrub(0.6 + (i % 3) * 0.2);
-          shrub.position.set(x + (Math.sin(i) * 0.8), 1.2, z + (Math.cos(i) * 0.8));
-          worldGroup.add(shrub);
-          dynamicNature.push(shrub);
-        }
-      }
-    }
-
-    // UI Fonksiyonları
-    function changeStreak(delta) {
-      streak = Math.max(0, streak + delta);
-      updateWorld();
-    }
-    function setStreakDirectly(val) {
-      streak = Math.max(0, parseInt(val) || 0);
-      updateWorld();
-    }
-    function toggleStorm() {
-      isStormy = !isStormy;
-      const btn = document.getElementById('storm-btn');
+      disposeChildren(dynamic); swaying.length=0; glow=null;
+      // 1. günde bir fidan; her üç günde bir yeni ağaç. Mevcut ağaçlar da 60. güne kadar büyür.
+      const count = Math.min(positions.length, Math.max(1, 1 + Math.floor(streak / 3)));
+      const maturity = Math.min(streak / 60, 1);
+      for (let i=0;i<count;i++) { const [x,z]=positions[i]; const ageBoost = Math.min(1, Math.max(0, (streak - i*3) / 18)); makeTree(x,z,.43 + maturity*.48 + ageBoost*.27 + (i%3)*.035,i); }
+      const flowerCount = Math.min(18, Math.floor(streak / 2));
+      for(let i=0;i<flowerCount;i++) { const a=(i*2.399)+.45, r=1.25+(i%5)*.57; makeFlower(Math.cos(a)*r,Math.sin(a)*r,i%3===0?0xffb2cf:i%3===1?0xffdb72:0xbca8ff); }
+      if (streak >= 7) makeAltar();
+      const lush = Math.min(streak / 30, 1);
+      grass.color.setHSL(.30 + lush*.055, .38 + lush*.2, .28 + lush*.12);
       if (isStormy) {
-        btn.innerText = "Fırtınayı Durdur";
-        btn.style.background = "#dc2626";
+        scene.background.setHex(0x0a172b); scene.fog.color.setHex(0x0a172b); scene.fog.density=.052; sun.intensity=.32; hemi.intensity=.54; moon.intensity=.55; if(!rain) makeRain(); rain.visible=true;
+        $('weather').textContent='🌧️'; $('weather').title='Zor gün modunu kapat'; $('tip').textContent='Zor günler de yolun bir parçası. Ada yerinde, sen de öyle.';
       } else {
-        btn.innerText = "Fırtına";
-        btn.style.background = "";
+        scene.background.setHSL(.55, .54, .15 + lush*.07); scene.fog.color.copy(scene.background); scene.fog.density=.024; sun.intensity=1.45; hemi.intensity=1.18; moon.intensity=.22; if(rain) rain.visible=false;
+        $('weather').textContent='☀️'; $('weather').title='Zor gün modunu aç'; $('tip').textContent='Adanı döndürmek için sürükle · Yakınlaşmak için kaydır';
       }
-      updateWorld();
+      const [label, line, emoji] = getStage(streak); $('level').textContent=label; $('streak-text').textContent=`${streak} ${streak === 1 ? 'gün' : 'gün'}`; $('message').textContent=line; $('seed').textContent=emoji;
+      $('progress-fill').style.width=`${((streak % 7) / 7) * 100}%`;
+      localStorage.setItem('zihin-adasi-streak', String(streak));
     }
-
-    // Animasyon Döngüsü
+    $('add').addEventListener('click',()=>{ streak++; updateWorld(); });
+    $('minus').addEventListener('click',()=>{ streak=Math.max(0,streak-1); updateWorld(); });
+    $('weather').addEventListener('click',()=>{ isStormy=!isStormy; updateWorld(); });
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
     let clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      const elapsedTime = clock.getElapsedTime();
-      controls.update();
-
-      // Adanın hafif dinlendirici dönüşü
-      worldGroup.rotation.y = elapsedTime * 0.04;
-
-      // Okyanus Dalgası
-      const pos = oceanGeo.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        const u = pos.getX(i);
-        const v = pos.getY(i);
-        pos.setZ(i, Math.sin(u * 0.15 + elapsedTime * 1.5) * 0.35 + Math.cos(v * 0.15 + elapsedTime * 1.2) * 0.35);
-      }
-      pos.needsUpdate = true;
-
-      // Ateş Böceklerinin Salınımı
-      if (fireflies && fireflies.visible) {
-        const fPos = fireflies.geometry.attributes.position.array;
-        for (let i = 1; i < fPos.length; i += 3) {
-          fPos[i] += Math.sin(elapsedTime * 2 + i) * 0.008;
-        }
-        fireflies.geometry.attributes.position.needsUpdate = true;
-      }
-
-      // Fırtına ve Şimşek Hareketi
-      if (isStormy) {
-        if (rainSystem) {
-          const rPos = rainSystem.geometry.attributes.position.array;
-          for (let i = 1; i < rPos.length; i += 3) {
-            rPos[i] -= 0.8;
-            if (rPos[i] < -15) rPos[i] = 25;
-          }
-          rainSystem.geometry.attributes.position.needsUpdate = true;
-        }
-
-        // Rastgele Şimşek Çakması
-        if (Math.random() < 0.015) {
-          lightningLight.intensity = 3.5;
-        } else {
-          lightningLight.intensity *= 0.85;
-        }
-      }
-
-      renderer.render(scene, camera);
-    }
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    updateWorld();
-    animate();
+    function animate() { requestAnimationFrame(animate); const t=clock.getElapsedTime(); controls.update(); water.rotation.y+=.00045; water.position.y=-1.72+Math.sin(t*.75)*.025;
+      swaying.forEach(({tree,phase,base})=>{ tree.rotation.z=base+Math.sin(t*1.2+phase)*.018; });
+      if(glow) { glow.altar.rotation.y=t*.45; glow.crystal.position.y=.34+Math.sin(t*2.2)*.055; }
+      if(isStormy && rain) { const a=rain.geometry.attributes.position.array; for(let i=1;i<a.length;i+=3){a[i]-=.22;if(a[i]<-2)a[i]=12;} rain.geometry.attributes.position.needsUpdate=true; }
+      renderer.render(scene,camera); }
+    updateWorld(); animate();
   </script>
 </body>
 </html>
+
