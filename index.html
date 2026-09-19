@@ -97,10 +97,9 @@
     for (let i = 0; i < 15; i++) { const a = i / 15 * Math.PI * 2; const r = 5.0 + (i % 3) * .22; const stone = mesh(new THREE.DodecahedronGeometry(.19 + (i % 2) * .08, 0), rock, -.28); stone.position.set(Math.cos(a) * r, -.28, Math.sin(a) * r); stone.rotation.set(i, a, i * .6); world.add(stone); }
 
     const dynamic = new THREE.Group(); world.add(dynamic);
-    const swaying = []; let rain = null; let glow = null;
+    const swaying = [], critters = []; let rain = null; let glow = null;
     const positions = [ [-2.6,1.9], [2.5,1.75], [-3.25,-.3], [2.9,-.9], [-1.25,3.6], [1.1,3.55], [-2.1,-2.65], [1.55,-2.75], [3.75,.35], [-4.05,1.22], [.1,-3.85], [3.15,2.75], [-3.55,-2.1], [-.5,2.35], [2.15,-3.45], [-4.1,.2], [3.9,-1.85], [-1.4,-3.7], [4.15,1.3], [.7,4.15], [-2.7,3.05], [2.55,-2.15] ];
     const leafMats = [0x1d5f3a, 0x2c7a46, 0x3f9250, 0x5aa858].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .88 }));
-    const needleMats = [0x164d3a, 0x216847, 0x2c7a50].map(c => new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: .9 }));
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x71462a, flatShading: true, roughness: 1 });
     const branchMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, flatShading: true, roughness: 1 });
     function branchBetween(group, from, to, width) {
@@ -112,33 +111,19 @@
     }
     function makeTree(x, z, size, index) {
       const tree = new THREE.Group();
-      const isPine = index % 4 === 1;
-      const trunkHeight = (isPine ? 2.35 : 2.05) * size;
+      const trunkHeight = (2.0 + (index % 3) * .13) * size;
       const trunk = mesh(new THREE.CylinderGeometry(.1 * size, .18 * size, trunkHeight, 7), trunkMat, trunkHeight / 2); tree.add(trunk);
       // Kök çıkıntıları, ağacın zemine daha doğal oturmasını sağlar.
       for (let r = 0; r < 4; r++) { const a = r * Math.PI / 2 + index; branchBetween(tree, new THREE.Vector3(0,.11*size,0), new THREE.Vector3(Math.cos(a)*.36*size,0,Math.sin(a)*.36*size), .052*size); }
-      if (isPine) {
-        // Çamın ayrı ayrı dal halkaları ve iğne demetleri vardır; tek bir koniden oluşmaz.
-        for (let ring = 0; ring < 4; ring++) {
-          const y = (.62 + ring * .38) * size, radius = (1.0 - ring * .16) * size;
-          for (let arm = 0; arm < 6; arm++) {
-            const a = arm * Math.PI * 2 / 6 + ring * .42;
-            const tip = new THREE.Vector3(Math.cos(a)*radius, y + .03*size, Math.sin(a)*radius);
-            branchBetween(tree, new THREE.Vector3(0,y,0), tip, .065*size);
-            const needles = mesh(new THREE.ConeGeometry(.27*size, .78*size, 6), needleMats[(ring+arm)%needleMats.length], 0);
-            needles.position.copy(tip); needles.rotation.z = Math.PI / 2; needles.rotation.y = -a; tree.add(needles);
-          }
-        }
-        const top = mesh(new THREE.ConeGeometry(.5*size,1.2*size,7),needleMats[1],2.23*size); tree.add(top);
-      } else {
-        // Dallanan gövde + farklı boydaki yaprak kümeleri: daha doğal, yuvarlak bir taç.
-        const crownPoints = [];
-        for (let b=0;b<7;b++) { const a=b*Math.PI*2/7+index*.48, start=new THREE.Vector3(0,(.86+(b%2)*.17)*size,0), end=new THREE.Vector3(Math.cos(a)*(.6+(b%3)*.12)*size,(1.25+(b%3)*.2)*size,Math.sin(a)*(.6+(b%3)*.12)*size); branchBetween(tree,start,end,.075*size); crownPoints.push(end); }
-        crownPoints.forEach((point,b) => {
-          for(let cluster=0;cluster<3;cluster++) { const a=cluster*2.094+b*.73; const leaf = mesh(new THREE.DodecahedronGeometry((.36+(cluster%2)*.07)*size,0),leafMats[(b+cluster+index)%leafMats.length],0); leaf.position.copy(point).add(new THREE.Vector3(Math.cos(a)*.28*size,(cluster-1)*.18*size+.25*size,Math.sin(a)*.28*size)); leaf.scale.set(1.15,.78,1); leaf.rotation.set(b,cluster,index*.2); tree.add(leaf); }
-        });
-        const crown = mesh(new THREE.DodecahedronGeometry(.68*size,1), leafMats[index%leafMats.length],1.72*size); crown.scale.set(1.15,.78,1); tree.add(crown);
-      }
+      // Her ağaç, görünen dallara tutunan çok sayıda yuvarlak yaprak kümesinden oluşur.
+      // Böylece konik "oyuncak çam" silueti yerine doğal bir geniş yapraklı ağaç görünür.
+      const crownPoints = [];
+      for (let b=0;b<8;b++) { const a=b*Math.PI*2/8+index*.43, start=new THREE.Vector3(0,(.82+(b%2)*.18)*size,0), end=new THREE.Vector3(Math.cos(a)*(.64+(b%3)*.13)*size,(1.3+(b%3)*.16)*size,Math.sin(a)*(.64+(b%3)*.13)*size); branchBetween(tree,start,end,.076*size); crownPoints.push(end); }
+      const leafGeo = new THREE.SphereGeometry(.42*size, 8, 6);
+      crownPoints.forEach((point,b) => {
+        for(let cluster=0;cluster<3;cluster++) { const a=cluster*2.094+b*.8; const leaf = mesh(leafGeo,leafMats[(b+cluster+index)%leafMats.length],0); leaf.position.copy(point).add(new THREE.Vector3(Math.cos(a)*.27*size,(cluster-1)*.17*size+.27*size,Math.sin(a)*.27*size)); leaf.scale.set(1.18,.76,1.03); tree.add(leaf); }
+      });
+      const crown = mesh(new THREE.SphereGeometry(.64*size,9,7), leafMats[(index+2)%leafMats.length],1.72*size); crown.scale.set(1.22,.76,1.06); tree.add(crown);
       tree.position.set(x, -.32, z); tree.rotation.y = (index * 1.71) % Math.PI;
       dynamic.add(tree); swaying.push({ tree, phase: index * 1.93, base: tree.rotation.z });
     }
@@ -154,18 +139,49 @@
       const wood = new THREE.MeshStandardMaterial({color:0x8d5b35,flatShading:true,roughness:1});
       const roof = new THREE.MeshStandardMaterial({color:0x34434b,flatShading:true,roughness:1});
       const warm = new THREE.MeshStandardMaterial({color:0xffd875,emissive:0xe99b36,emissiveIntensity:1.15,flatShading:true});
-      const floor = mesh(new THREE.CylinderGeometry(1.08,1.18,.18,10),new THREE.MeshStandardMaterial({color:0x64737a,flatShading:true,roughness:1}),-.1); shelter.add(floor);
-      const cabin = mesh(new THREE.BoxGeometry(1.28,1.05,1.08),wood,.48); shelter.add(cabin);
-      const roofTop = mesh(new THREE.ConeGeometry(1.08,.78,4),roof,1.38); roofTop.rotation.y=Math.PI/4; shelter.add(roofTop);
+      const homeLevel = streak >= 45 ? 3 : streak >= 20 ? 2 : 1;
+      const floor = mesh(new THREE.CylinderGeometry(1.16,1.26,.18,10),new THREE.MeshStandardMaterial({color:0x64737a,flatShading:true,roughness:1}),-.1); shelter.add(floor);
+      const cabin = mesh(new THREE.BoxGeometry(1.35,1.05,1.12),wood,.48); shelter.add(cabin);
+      // İki eğimli çatı parçası, yukarıdan bakıldığında kulübeyi daha okunur kılar.
+      [-1,1].forEach(side=>{ const roofSide=mesh(new THREE.BoxGeometry(1.65,.12,.78),roof,1.32); roofSide.position.z=side*.28; roofSide.rotation.x=side*.52; shelter.add(roofSide); });
       const door = mesh(new THREE.BoxGeometry(.27,.56,.025),new THREE.MeshStandardMaterial({color:0x4d2d1d,flatShading:true}),.26); door.position.z=.553; shelter.add(door);
       [-.37,.37].forEach(x=>{ const window=mesh(new THREE.BoxGeometry(.23,.28,.03),warm,.62); window.position.set(x,.62,.555); shelter.add(window); });
       const chimney=mesh(new THREE.BoxGeometry(.16,.55,.16),new THREE.MeshStandardMaterial({color:0x67737a,flatShading:true}),1.58); chimney.position.set(-.35,1.58,0); shelter.add(chimney);
+      if(homeLevel >= 2) {
+        const porch=mesh(new THREE.BoxGeometry(1.65,.12,.72),new THREE.MeshStandardMaterial({color:0x9d7449,flatShading:true}),-.06); porch.position.z=.93; shelter.add(porch);
+        [-.68,.68].forEach(x=>{ const rail=mesh(new THREE.CylinderGeometry(.035,.04,.45,5),branchMat,.17); rail.position.set(x,.17,.93); shelter.add(rail); });
+        const planter=mesh(new THREE.BoxGeometry(.65,.2,.25),new THREE.MeshStandardMaterial({color:0x7b4a2b,flatShading:true}),.54); planter.position.set(.5,.54,.58); shelter.add(planter);
+        for(let f=0;f<4;f++){ const bloom=mesh(new THREE.SphereGeometry(.07,6,5),f%2?leafMats[3]:warm,.76); bloom.position.set(.28+f*.14,.76,.58); shelter.add(bloom); }
+      }
+      if(homeLevel >= 3) {
+        const loft=mesh(new THREE.BoxGeometry(.88,.52,.76),new THREE.MeshStandardMaterial({color:0x9b6940,flatShading:true}),1.52); shelter.add(loft);
+        [-1,1].forEach(side=>{ const topRoof=mesh(new THREE.BoxGeometry(1.16,.1,.55),roof,1.91); topRoof.position.z=side*.2; topRoof.rotation.x=side*.55; shelter.add(topRoof); });
+        const loftWindow=mesh(new THREE.BoxGeometry(.2,.18,.025),warm,1.55); loftWindow.position.z=.39; shelter.add(loftWindow);
+      }
       // Taş patika ve kapının yanındaki fener, merkeze işlev ve hikâye katar.
       for(let i=0;i<3;i++){ const step=mesh(new THREE.DodecahedronGeometry(.22,0),rock,-.19); step.position.set(0,-.19,.9+i*.35); step.scale.set(1.3,.32,.9); shelter.add(step); }
       const post=mesh(new THREE.CylinderGeometry(.035,.045,.65,5),branchMat,.18); post.position.set(.82,.18,.55); shelter.add(post);
       const lantern=mesh(new THREE.OctahedronGeometry(.13,0),warm,.55); lantern.position.set(.82,.55,.55); shelter.add(lantern);
       const light=new THREE.PointLight(0xffc15a,1.35,4.6); light.position.set(.82,.62,.65); shelter.add(light);
       shelter.position.y=-.24; dynamic.add(shelter); glow={shelter,lantern,light};
+    }
+    function makeRabbit(x,z,phase) {
+      const rabbit=new THREE.Group(), fur=new THREE.MeshStandardMaterial({color:0xd8bfa4,flatShading:true,roughness:1}), belly=new THREE.MeshStandardMaterial({color:0xfff4e3,flatShading:true}), eye=new THREE.MeshStandardMaterial({color:0x1e2935,flatShading:true});
+      const body=mesh(new THREE.SphereGeometry(.2,8,6),fur,.18); body.scale.set(1.25,.82,1.4); rabbit.add(body);
+      const head=mesh(new THREE.SphereGeometry(.14,8,6),fur,.29); head.position.z=.23; rabbit.add(head);
+      [-.07,.07].forEach(dx=>{const ear=mesh(new THREE.SphereGeometry(.055,6,5),belly,.45);ear.position.set(dx,.45,.25);ear.scale.set(.72,2.2,.65);rabbit.add(ear);});
+      [-.052,.052].forEach(dx=>{const dot=mesh(new THREE.SphereGeometry(.018,5,4),eye,.32);dot.position.set(dx,.32,.35);rabbit.add(dot);});
+      const tail=mesh(new THREE.SphereGeometry(.075,6,5),belly,.2);tail.position.z=-.24;rabbit.add(tail);
+      rabbit.position.set(x,-.26,z); rabbit.rotation.y=phase; dynamic.add(rabbit); critters.push({animal:rabbit,phase,kind:'rabbit',baseY:-.26});
+    }
+    function makeDeer(x,z,phase) {
+      const deer=new THREE.Group(), fur=new THREE.MeshStandardMaterial({color:0xa9663c,flatShading:true,roughness:1}), dark=new THREE.MeshStandardMaterial({color:0x40251c,flatShading:true});
+      const body=mesh(new THREE.SphereGeometry(.28,8,6),fur,.42);body.scale.set(1.35,.8,1.7);deer.add(body);
+      for(const dx of [-.16,.16]) for(const dz of [-.2,.2]) { const leg=mesh(new THREE.CylinderGeometry(.027,.04,.48,5),dark,.18);leg.position.set(dx,.18,dz);deer.add(leg); }
+      const neck=mesh(new THREE.CylinderGeometry(.07,.11,.42,6),fur,.7);neck.rotation.z=-.34;neck.position.z=.36;deer.add(neck);
+      const head=mesh(new THREE.SphereGeometry(.13,7,5),fur,.94);head.position.set(0,.94,.49);head.scale.set(.85,.8,1.25);deer.add(head);
+      [-.07,.07].forEach(dx=>{const antler=mesh(new THREE.CylinderGeometry(.012,.02,.28,5),dark,1.12);antler.position.set(dx,1.12,.47);antler.rotation.z=dx*3.8;deer.add(antler);});
+      deer.position.set(x,-.26,z);deer.rotation.y=phase;dynamic.add(deer);critters.push({animal:deer,phase,kind:'deer',baseY:-.26});
     }
     function makeRain() {
       const count = 850, geo = new THREE.BufferGeometry(), data = new Float32Array(count*3);
@@ -182,7 +198,7 @@
       return ['Kadim orman', 'Attığın her adım burada iz bırakıyor.', '🏝️'];
     }
     function updateWorld() {
-      disposeChildren(dynamic); swaying.length=0; glow=null;
+      disposeChildren(dynamic); swaying.length=0; critters.length=0; glow=null;
       // 1. günde bir fidan; her üç günde bir yeni ağaç. Mevcut ağaçlar da 60. güne kadar büyür.
       const count = Math.min(positions.length, Math.max(1, 1 + Math.floor(streak / 3)));
       const maturity = Math.min(streak / 60, 1);
@@ -190,6 +206,10 @@
       const flowerCount = Math.min(18, Math.floor(streak / 2));
       for(let i=0;i<flowerCount;i++) { const a=(i*2.399)+.45, r=1.25+(i%5)*.57; makeFlower(Math.cos(a)*r,Math.sin(a)*r,i%3===0?0xffb2cf:i%3===1?0xffdb72:0xbca8ff); }
       if (streak >= 7) makeShelter();
+      // Ada iyileştikçe sessiz canlılar da geri gelir.
+      if (streak >= 3) makeRabbit(-.9, 1.35, .7);
+      if (streak >= 12) makeRabbit(1.18, 1.1, -1.9);
+      if (streak >= 21) makeDeer(-1.65, -.95, .4);
       const lush = Math.min(streak / 30, 1);
       grass.color.setHSL(.30 + lush*.055, .38 + lush*.2, .28 + lush*.12);
       if (isStormy) {
@@ -211,6 +231,7 @@
     function animate() { requestAnimationFrame(animate); const t=clock.getElapsedTime(); controls.update(); water.rotation.y+=.00045; water.position.y=-1.72+Math.sin(t*.75)*.025;
       swaying.forEach(({tree,phase,base})=>{ tree.rotation.z=base+Math.sin(t*1.2+phase)*.018; });
       if(glow) { glow.lantern.position.y=.55+Math.sin(t*3.1)*.025; glow.light.intensity=1.2+Math.sin(t*4.6)*.18; }
+      critters.forEach(({animal,phase,kind,baseY})=>{ animal.position.y=baseY+Math.abs(Math.sin(t*(kind==='rabbit'?2.4:1.05)+phase))*(kind==='rabbit'?.035:.012); if(kind==='rabbit') animal.rotation.y=phase+Math.sin(t*.7+phase)*.18; });
       if(isStormy && rain) { const a=rain.geometry.attributes.position.array; for(let i=1;i<a.length;i+=3){a[i]-=.22;if(a[i]<-2)a[i]=12;} rain.geometry.attributes.position.needsUpdate=true; }
       renderer.render(scene,camera); }
     updateWorld(); animate();
